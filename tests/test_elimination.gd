@@ -63,6 +63,7 @@ func run() -> void:
 	if not verify:
 		var fresh := Profile.new()
 		fresh.path = TEST_PATH
+		fresh.equipped_elimination_effect = "classic"
 		fresh.save_profile(true)
 	var game := Main.new()
 	game.profile.path = TEST_PATH
@@ -81,16 +82,16 @@ func run() -> void:
 		var unwritable := UnwritableProfile.new()
 		var original: Dictionary = unwritable.appearance.duplicate()
 		check(unwritable.equip_loadout({"hat": "gambler"}, "wanted_eliminated") != OK, "Failed equip reports save error")
-		check(unwritable.appearance == original and unwritable.equipped_elimination_effect == "classic", "Failed save rolls back both appearance and effect")
+		check(unwritable.appearance == original and unwritable.equipped_elimination_effect == "wanted_eliminated", "Failed save rolls back both appearance and effect")
 		check(unwritable.equip_loadout(original, "invalid_effect") == ERR_INVALID_PARAMETER, "Unknown new effect cannot be equipped")
-		check(Effects.resolve_id("future_effect") == "classic", "Future IDs safely fall back to Classic")
+		check(Effects.resolve_id("future_effect") == "wanted_eliminated", "Unknown IDs safely fall back to WANTED")
 		duel(game, 1, 0, 3, 1)
 		check(not fx.active and game.hud.overlay.visible, "Classic retains immediate result presentation")
 		check(game.profile.stats.matches_played == 1, "Classic result counted once")
 		game.show_menu()
 		menu.show_page("customize")
 		await settle()
-		check(menu.elimination_selector.item_count == 2, "Two effect choices")
+		check(menu.elimination_selector.item_count == Effects.LABELS.size(), "All registered effect choices")
 		menu.elimination_selector.select(1)
 		menu.elimination_selector.item_selected.emit(1)
 		menu.appearance_selectors.hat.select(2)

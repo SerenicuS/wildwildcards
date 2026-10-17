@@ -87,6 +87,8 @@ func run() -> void:
 		await process_frame
 		await RenderingServer.frame_post_draw
 		root.get_texture().get_image().save_png("res://.godot/audio_brand_preview.png")
+	# These checks cover the original 1.0 s mode (Hard); set in memory only.
+	game.settings.set_difficulty("hard")
 	game.start_duel()
 	game.intro_start = Time.get_ticks_usec() - 2800000
 	game._process(0.0)

@@ -31,7 +31,7 @@ func write_json(path: String, value: Variant) -> void:
 func _initialize() -> void:
 	var profile := MemoryProfile.new()
 	check(profile.display_name == "Gunslinger" and profile.appearance == Looks.defaults() and
-		profile.equipped_elimination_effect == "classic", "Default identity, look and future elimination field")
+		profile.equipped_elimination_effect == "wanted_eliminated", "Default identity, look and future elimination field")
 	check(profile.stats.total_turns == 0 and profile.win_rate() == 0.0, "Fresh stats")
 	profile.begin_match()
 	var turns := [[1, 1, 0, 0], [2, 3, 1, 1], [2, 3, 1, 0], [1, 3, 1, 0], [3, 3, 2, 1], [3, 1, 1, 0]]
@@ -81,7 +81,7 @@ func _initialize() -> void:
 	var loaded := Profile.new()
 	loaded.path = TEST_PATH
 	loaded.load_profile()
-	check(loaded.display_name == "Mara Vale" and loaded.appearance == disk.appearance and loaded.equipped_elimination_effect == "classic", "Identity, look and elimination field survive reload")
+	check(loaded.display_name == "Mara Vale" and loaded.appearance == disk.appearance and loaded.equipped_elimination_effect == "wanted_eliminated", "Identity, look and elimination field survive reload")
 	loaded.begin_match()
 	loaded.record_turn(1, DuelRules.resolve(state(1), state(), 3, 0))
 	var reopened := Profile.new()

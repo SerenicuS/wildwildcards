@@ -3,7 +3,9 @@ extends RefCounted
 signal changed
 
 const Appearance = preload("res://scripts/CharacterAppearance.gd")
-const VERSION: int = 1
+const Effects = preload("res://scripts/EliminationEffects.gd")
+const VERSION: int = 5
+const GAUNTLET_DEFAULTS := {"best_streak": 0, "total_runs": 0, "duel_victories": 0}
 const STAT_KEYS := ["matches_played", "wins", "losses", "total_turns", "reload_actions", "shield_actions",
 	"shoot_actions", "none_actions", "shots_fired", "successful_eliminations", "shots_blocked",
 	"shield_turns_against_shoot", "reload_turns_against_shoot", "shootout_draws",
@@ -11,8 +13,12 @@ const STAT_KEYS := ["matches_played", "wins", "losses", "total_turns", "reload_a
 var path: String = "user://profile.json"
 var display_name: String = "Gunslinger"
 var appearance: Dictionary = Appearance.defaults()
-var equipped_elimination_effect: String = "classic"
+var outfit_presets: Array[Dictionary] = []
+var equipped_elimination_effect: String = Effects.FALLBACK
 var stats: Dictionary = {}
+var gauntlet_records: Dictionary = GAUNTLET_DEFAULTS.duplicate()
+var _gauntlet_active: bool = false
+var _gauntlet_last_duel: int = 0
 var load_notice: String = ""
 var last_save_error: Error = OK
 var _match_active: bool = false
@@ -59,15 +65,28 @@ func load_profile() -> void:
 		return
 	# A reset commits its new backup first. If shutdown interrupts the primary
 	# replacement, prefer that newer reset over an otherwise readable old primary.
-	if _revision(backup) > _revision(saved) and backup.get("version", VERSION) == VERSION:
+	var backup_version: Variant = backup.get("version", VERSION)
+	if _revision(backup) > _revision(saved) and (backup_version is int or backup_version is float) \
+			and backup_version >= 1 and backup_version <= VERSION:
 		saved = backup
 		load_notice = "Recovered confirmed reset from backup."
 	_reset_revision = _revision(saved)
 	display_name = clean_name(saved.get("display_name", "Gunslinger"))
 	appearance = Appearance.sanitize(saved.get("appearance"))
-	var effect: Variant = saved.get("equipped_elimination_effect", "classic")
-	if effect is String and not effect.is_empty():
-		equipped_elimination_effect = effect.left(64)
+	# Version 1 profiles receive safe cosmetic defaults. Version 2 stores the
+	# three revolver IDs explicitly, while runtime portraits share one appearance.
+	for key in Appearance.Revolver.defaults():
+		if saved.has(key):
+			appearance[key] = saved[key]
+	appearance = Appearance.sanitize(appearance)
+	var saved_presets: Variant = saved.get("outfit_presets", [])
+	outfit_presets.clear()
+	if saved_presets is Array:
+		for preset in saved_presets.slice(0, 5):
+			if preset is Dictionary and preset.get("appearance") is Dictionary:
+				outfit_presets.append({"name": clean_name(preset.get("name", "Outfit")), "appearance": Appearance.sanitize(preset.appearance)})
+	var effect: Variant = saved.get("equipped_elimination_effect", Effects.FALLBACK)
+	equipped_elimination_effect = Effects.resolve_id(effect) if effect is String else Effects.FALLBACK
 	var saved_stats: Variant = saved.get("stats", {})
 	if saved_stats is Dictionary:
 		for key in STAT_KEYS:
@@ -75,6 +94,12 @@ func load_profile() -> void:
 			if (value is float or value is int) and is_finite(float(value)):
 				stats[key] = int(clampf(float(value), 0.0, 1000000000000.0))
 	stats.matches_played = maxi(stats.matches_played, stats.wins + stats.losses)
+	var saved_gauntlet: Variant = saved.get("gauntlet", {})
+	if saved_gauntlet is Dictionary:
+		for key in GAUNTLET_DEFAULTS:
+			var value: Variant = saved_gauntlet.get(key, 0)
+			if (value is int or value is float) and is_finite(float(value)):
+				gauntlet_records[key] = int(clampf(float(value), 0.0, 1000000000000.0))
 
 static func clean_name(value: Variant) -> String:
 	if not value is String:
@@ -95,6 +120,12 @@ func save_profile(refresh_backup: bool = false) -> Error:
 		return last_save_error
 	var payload := {"version": VERSION, "display_name": display_name, "appearance": appearance,
 		"equipped_elimination_effect": equipped_elimination_effect, "stats": stats, "reset_revision": _reset_revision}
+	payload.appearance = Appearance.sanitize(appearance)
+	for key in Appearance.Revolver.defaults():
+		payload.appearance.erase(key)
+	payload.merge(Appearance.Revolver.sanitize(appearance))
+	payload["outfit_presets"] = outfit_presets
+	payload["gauntlet"] = gauntlet_records
 	var file := FileAccess.open(path + ".tmp", FileAccess.WRITE)
 	if file == null:
 		last_save_error = FileAccess.get_open_error()
@@ -128,7 +159,39 @@ func save_profile(refresh_backup: bool = false) -> Error:
 	return last_save_error
 
 func is_match_active() -> bool:
-	return _match_active
+	return _match_active or _gauntlet_active
+
+func begin_gauntlet_run() -> bool:
+	if _gauntlet_active:
+		return false
+	abandon_match()
+	_gauntlet_active = true
+	_gauntlet_last_duel = 0
+	gauntlet_records.total_runs += 1 # Count at start, never again on loss/exit.
+	_save_gauntlet_records()
+	return true
+
+func record_gauntlet_victory(duel: int, streak: int) -> bool:
+	if not _gauntlet_active or duel <= _gauntlet_last_duel or streak != _gauntlet_last_duel + 1 or duel != streak:
+		return false
+	_gauntlet_last_duel = duel
+	gauntlet_records.duel_victories += 1
+	gauntlet_records.best_streak = maxi(gauntlet_records.best_streak, streak)
+	_save_gauntlet_records()
+	return true
+
+func end_gauntlet_run() -> bool:
+	if not _gauntlet_active:
+		return false
+	_gauntlet_active = false
+	if _dirty:
+		save_profile()
+	return true
+
+func _save_gauntlet_records() -> void:
+	_dirty = true
+	save_profile()
+	changed.emit()
 
 func reset_stats() -> Error:
 	return _reset(false)
@@ -137,16 +200,18 @@ func reset_profile() -> Error:
 	return _reset(true)
 
 func _reset(identity_too: bool) -> Error:
-	if _match_active:
+	if is_match_active():
 		return ERR_BUSY
 	var previous := {"name": display_name, "appearance": appearance.duplicate(), "effect": equipped_elimination_effect,
-		"stats": stats.duplicate(), "revision": _reset_revision, "dirty": _dirty}
+		"stats": stats.duplicate(), "gauntlet": gauntlet_records.duplicate(), "presets": outfit_presets.duplicate(true), "revision": _reset_revision, "dirty": _dirty}
 	for key in stats:
 		stats[key] = 0
+	gauntlet_records = GAUNTLET_DEFAULTS.duplicate()
 	if identity_too:
+		outfit_presets.clear()
 		display_name = "Gunslinger"
 		appearance = Appearance.defaults()
-		equipped_elimination_effect = "classic"
+		equipped_elimination_effect = Effects.FALLBACK
 	_reset_revision += 1
 	var error := save_profile(true)
 	if error != OK:
@@ -154,6 +219,8 @@ func _reset(identity_too: bool) -> Error:
 		appearance = previous.appearance
 		equipped_elimination_effect = previous.effect
 		stats = previous.stats
+		gauntlet_records = previous.gauntlet
+		outfit_presets = previous.presets
 		_reset_revision = previous.revision
 		_dirty = previous.dirty
 		return error
@@ -176,17 +243,52 @@ func equip(value: Dictionary) -> Error:
 	return equip_loadout(value, equipped_elimination_effect)
 
 func equip_loadout(value: Dictionary, effect: String) -> Error:
-	# Existing appearance callers preserve even unknown future effect IDs.
-	if effect != equipped_elimination_effect and not preload("res://scripts/EliminationEffects.gd").LABELS.has(effect):
+	if not Effects.LABELS.has(effect):
 		return ERR_INVALID_PARAMETER
 	var previous := appearance
 	var previous_effect := equipped_elimination_effect
-	appearance = Appearance.sanitize(value)
+	var complete := value.duplicate()
+	# Partial/legacy callers preserve fields they do not know about, including
+	# expanded clothing and revolvers. Sanitization still rejects invalid IDs.
+	for key in Appearance.defaults():
+		if not complete.has(key):
+			complete[key] = appearance.get(key, Appearance.defaults()[key])
+	appearance = Appearance.sanitize(complete)
 	equipped_elimination_effect = effect
 	var error := save_profile()
 	if error != OK:
 		appearance = previous
 		equipped_elimination_effect = previous_effect
+	else:
+		changed.emit()
+	return error
+
+func save_outfit_preset(caption: String, value: Dictionary) -> Error:
+	if outfit_presets.size() >= 5:
+		return ERR_OUT_OF_MEMORY
+	return _commit_presets(outfit_presets + [{"name": clean_name(caption), "appearance": Appearance.sanitize(value)}])
+
+func rename_outfit_preset(index: int, caption: String) -> Error:
+	if index < 0 or index >= outfit_presets.size():
+		return ERR_INVALID_PARAMETER
+	var next := outfit_presets.duplicate(true)
+	next[index].name = clean_name(caption)
+	return _commit_presets(next)
+
+func delete_outfit_preset(index: int) -> Error:
+	if index < 0 or index >= outfit_presets.size():
+		return ERR_INVALID_PARAMETER
+	var next := outfit_presets.duplicate(true)
+	next.remove_at(index)
+	return _commit_presets(next)
+
+func _commit_presets(next: Array) -> Error:
+	var previous := outfit_presets
+	outfit_presets = []
+	outfit_presets.assign(next)
+	var error := save_profile()
+	if error != OK:
+		outfit_presets = previous
 	else:
 		changed.emit()
 	return error

@@ -30,7 +30,7 @@ func fixture() -> Dictionary:
 	stats.losses = 3
 	stats.shots_blocked = 4
 	return {"version": 1, "display_name": "Mara Vale", "appearance": EQUIPPED,
-		"equipped_elimination_effect": "future_test", "stats": stats, "reset_revision": 0}
+		"equipped_elimination_effect": "smoke_mirrors", "stats": stats, "reset_revision": 0}
 
 func write_text(path: String, text: String) -> void:
 	var file := FileAccess.open(path, FileAccess.WRITE)
@@ -97,9 +97,9 @@ func run() -> void:
 	menu.show_page("profile")
 	await settle()
 	if stats_restart:
-		check(zero_stats(profile) and profile.display_name == "Mara Vale" and profile.appearance == EQUIPPED and
-			profile.equipped_elimination_effect == "future_test", "Fresh process preserves identity/appearance/effect and reset stats")
-		check(menu.profile_stat_labels.shots_blocked.text == "0" and menu.profile_portrait.player_appearance == EQUIPPED, "Restart poster reflects reset and equipped portrait")
+		check(zero_stats(profile) and profile.display_name == "Mara Vale" and profile.appearance == Looks.sanitize(EQUIPPED) and
+			profile.equipped_elimination_effect == "smoke_mirrors", "Fresh process preserves identity/appearance/effect and reset stats")
+		check(menu.profile_stat_labels.shots_blocked.text == "0" and menu.profile_portrait.player_appearance == Looks.sanitize(EQUIPPED), "Restart poster reflects reset and equipped portrait")
 		await recovery_checks(profile, false)
 		# Next verify a full reset through the same developer-command input.
 		await key(KEY_QUOTELEFT)
@@ -108,7 +108,7 @@ func run() -> void:
 		check(profile.display_name == "Mara Vale" and profile.stats == before, "Full reset prompt does not mutate profile")
 		await command(console, "confirm_reset_profile")
 		check(profile.display_name == "Gunslinger" and profile.appearance == Looks.defaults() and
-			profile.equipped_elimination_effect == "classic" and zero_stats(profile), "Confirmed reset_profile restores every default")
+			profile.equipped_elimination_effect == "wanted_eliminated" and zero_stats(profile), "Confirmed reset_profile restores every default")
 		check(menu.name_edit.text == "Gunslinger" and menu.profile_portrait.player_appearance == Looks.defaults(), "Open poster immediately refreshes identity and portrait")
 		check(game.arena.player_appearance == Looks.defaults() and game.hud.player_display_name == "Gunslinger", "Gameplay presentation receives profile reset")
 		var saved: String = FileAccess.get_file_as_string(TEST_PATH)
@@ -116,19 +116,19 @@ func run() -> void:
 		check(FileAccess.get_file_as_string(TEST_PATH) == saved, "Repeated full confirmation cannot execute twice")
 	elif profile_restart:
 		check(profile.display_name == "Gunslinger" and profile.appearance == Looks.defaults() and
-			profile.equipped_elimination_effect == "classic" and zero_stats(profile), "Fresh process restores confirmed default profile")
+			profile.equipped_elimination_effect == "wanted_eliminated" and zero_stats(profile), "Fresh process restores confirmed default profile")
 		await recovery_checks(profile, true)
 	else:
 		check(menu.wanted_paper.visible and not menu.navigation_panel.visible, "Profile uses wanted parchment")
 		check(menu.profile_stat_labels.matches_played.text == "10" and menu.profile_stat_labels.wins.text == "7" and
 			menu.profile_stat_labels.losses.text == "3" and menu.profile_stat_labels.win_rate.text == "70.0%" and
 			menu.profile_stat_labels.shots_blocked.text == "4", "Wanted poster displays saved statistics")
-		check(menu.profile_portrait.player_appearance == EQUIPPED and menu.bounty_label.text == "BOUNTY  $2350", "Equipped portrait and deterministic decorative bounty")
+		check(menu.profile_portrait.player_appearance == Looks.sanitize(EQUIPPED) and menu.bounty_label.text == "BOUNTY  $2350", "Equipped portrait and deterministic decorative bounty")
 		await capture("poster")
 		var other_look := {"hat": "wide_brim", "outfit": "rust", "accessory": "bandana"}
-		check(profile.equip(other_look) == OK and menu.profile_portrait.player_appearance == other_look,
+		check(profile.equip(other_look) == OK and menu.profile_portrait.player_appearance == Looks.sanitize(other_look),
 			"Open wanted portrait immediately reflects confirmed customization")
-		check(profile.equip(EQUIPPED) == OK and menu.profile_portrait.player_appearance == EQUIPPED,
+		check(profile.equip(EQUIPPED) == OK and menu.profile_portrait.player_appearance == Looks.sanitize(EQUIPPED),
 			"Wanted portrait restores equipped fixture")
 		var original: Dictionary = profile.stats.duplicate()
 		await key(KEY_QUOTELEFT)
@@ -172,7 +172,7 @@ func run() -> void:
 		await command(console, "reset_stats")
 		await command(console, "confirm_reset_stats")
 		check(zero_stats(profile), "All lifetime counters reset to zero")
-		check(profile.display_name == "Mara Vale" and profile.appearance == EQUIPPED and profile.equipped_elimination_effect == "future_test", "Stats reset preserves name/appearance/elimination field")
+		check(profile.display_name == "Mara Vale" and profile.appearance == Looks.sanitize(EQUIPPED) and profile.equipped_elimination_effect == "smoke_mirrors", "Stats reset preserves name/appearance/elimination field")
 		check(menu.profile_stat_labels.wins.text == "0" and menu.profile_stat_labels.shots_blocked.text == "0" and
 			menu.profile_stat_labels.win_rate.text == "0.0%" and menu.bounty_label.text == "BOUNTY  $500", "Open poster immediately refreshes reset statistics")
 		check(menu.name_edit.text == "Unconfirmed name", "Stats refresh preserves unconfirmed name edit")
@@ -197,7 +197,7 @@ func recovery_checks(profile: RefCounted, defaults: bool) -> void:
 	recovered.load_profile()
 	check(zero_stats(recovered), "Reset-safe backup cannot resurrect pre-reset statistics")
 	check(recovered.display_name == ("Gunslinger" if defaults else "Mara Vale") and
-		recovered.appearance == (Looks.defaults() if defaults else EQUIPPED), "Backup retains correct post-reset identity")
+		recovered.appearance == (Looks.defaults() if defaults else Looks.sanitize(EQUIPPED)), "Backup retains correct post-reset identity")
 	# Simulate interruption between backup commit and primary replacement.
 	write_text(TEST_PATH, JSON.stringify(fixture()))
 	recovered = Profile.new()

@@ -21,10 +21,15 @@ func run() -> void:
 	root.add_child(game)
 	game.set_process(false)
 	check(game.state == Main.State.MAIN_MENU, "Starts at main menu")
+	# These checks cover the original 1.0 s mode (Hard); set in memory only.
+	game.settings.set_difficulty("hard")
 	game.start_duel()
 	check(game.state == Main.State.COUNTDOWN, "Duel starts with countdown")
+	# Synthetic calls still respect the existing shared-key debounce.
+	game.last_pause_toggle_usec -= 60000
 	game.toggle_pause()
 	check(paused and game.state == Main.State.PAUSED, "Introduction pauses")
+	game.last_pause_toggle_usec -= 60000
 	game.hud.resume_requested.emit()
 	check(not paused and game.state == Main.State.COUNTDOWN, "Resume signal works while paused")
 	game.intro_start = Time.get_ticks_usec() - 2800000
@@ -57,9 +62,13 @@ func run() -> void:
 	game.player.shields = 3
 	game.submit_action(Rules.Action.SHIELD)
 	check(game.selected == Rules.Action.NONE, "Fourth shield becomes NONE")
+	# Synthetic calls still respect the existing shared-key debounce.
+	game.last_pause_toggle_usec -= 60000
 	game.toggle_pause()
 	var frozen_deadline: int = game.deadline
 	game.pause_start -= 1500000
+	# Synthetic calls still respect the existing shared-key debounce.
+	game.last_pause_toggle_usec -= 60000
 	game.toggle_pause()
 	check(game.deadline >= frozen_deadline + 1500000, "Pause shifts turn deadline")
 	game.player.ammo = 0

@@ -55,9 +55,9 @@ func run() -> void:
 	var menu = game.main_menu
 	var equipped := {"hat": "gambler", "outfit": "rust", "accessory": "bandana"}
 	if verifying:
-		check(game.profile.display_name == "Mara Vale" and game.profile.appearance == equipped, "Fresh process restores name and appearance")
+		check(game.profile.display_name == "Mara Vale" and game.profile.appearance == Looks.sanitize(equipped), "Fresh process restores name and appearance")
 		check(game.profile.stats.matches_played == 1 and game.profile.stats.wins == 1, "Fresh process restores lifetime stats")
-		check(game.arena.player_appearance == equipped, "Restored appearance wired into actual arena")
+		check(game.arena.player_appearance == Looks.sanitize(equipped), "Restored appearance wired into actual arena")
 	else:
 		await click(menu.buttons.profile)
 		check(menu.name_edit.text == "Gunslinger", "Default name shown")
@@ -73,10 +73,10 @@ func run() -> void:
 		for key in equipped:
 			var picker: OptionButton = menu.appearance_selectors[key]
 			for i in range(picker.item_count):
-				if picker.get_item_metadata(i) == equipped[key]:
+				if picker.get_item_metadata(i) == Looks.sanitize(equipped)[key]:
 					picker.select(i)
 					picker.item_selected.emit(i)
-		check(menu.character_preview.player_appearance == equipped and game.profile.appearance == Looks.defaults(), "Live preview changes without equipping")
+		check(menu.character_preview.player_appearance == Looks.sanitize(equipped) and game.profile.appearance == Looks.defaults(), "Live preview changes without equipping")
 		check(not menu.buttons.equip.disabled and menu.appearance_status.text.contains("not equipped"), "Pending appearance clearly marked")
 		await capture("preview")
 		await click(menu.buttons.back)
@@ -98,11 +98,11 @@ func run() -> void:
 		for key in equipped:
 			var picker: OptionButton = menu.appearance_selectors[key]
 			for i in range(picker.item_count):
-				if picker.get_item_metadata(i) == equipped[key]:
+				if picker.get_item_metadata(i) == Looks.sanitize(equipped)[key]:
 					picker.select(i)
 					picker.item_selected.emit(i)
 		await click(menu.buttons.equip)
-		check(game.profile.appearance == equipped and game.arena.player_appearance == equipped and menu.buttons.equip.disabled, "Equip persists and applies shared appearance")
+		check(game.profile.appearance == Looks.sanitize(equipped) and game.arena.player_appearance == Looks.sanitize(equipped) and menu.buttons.equip.disabled, "Equip persists and applies shared appearance")
 		await capture("equipped")
 		for control in menu.content.get_children():
 			check(control.position.y + control.size.y + menu.content.position.y <= 635, "Customization fits existing menu panel")
@@ -138,7 +138,7 @@ func run() -> void:
 		check(game.profile.stats.matches_played == 1 and game.profile.display_name == "Mara Vale", "Return to menu retains identity/statistics")
 		await capture("record")
 		game.start_duel()
-		check(game.profile.stats.matches_played == 1 and game.arena.player_appearance == equipped, "Rematch preserves lifetime profile and appearance")
+		check(game.profile.stats.matches_played == 1 and game.arena.player_appearance == Looks.sanitize(equipped), "Rematch preserves lifetime profile and appearance")
 		game.show_menu()
 	game.queue_free()
 	await process_frame

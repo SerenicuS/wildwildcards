@@ -30,10 +30,10 @@ func clear() -> void:
 	# Keep match numbering even when the user clears the display mid-match.
 	changed.emit()
 
-func start_match(personality: Dictionary = {}) -> void:
+func start_match(personality: Dictionary = {}, mode_name: String = "SOLO") -> void:
 	match_number += 1
 	match_open = true
-	var text := "=== MATCH #%d START ===\n" % match_number
+	var text := "=== MATCH #%d START ===\n" % match_number if mode_name == "SOLO" else "=== MATCH #%d START (%s) ===\n" % [match_number, mode_name]
 	if not personality.is_empty():
 		text += "BOT PERSONALITY:\nAggression: %s\nCaution: %s\nGreed: %s\n" % [
 			str(personality.aggression), str(personality.caution), str(personality.greed)]
@@ -46,13 +46,22 @@ func end_match(winner: String, turns: int) -> void:
 	append("=== MATCH #%d END ===\nWinner: %s\nTurns: %d\n\n" % [match_number, winner, turns])
 
 func record_turn(turn: int, before_player: Dictionary, before_bot: Dictionary,
-		selected_player: int, selected_bot: int, result: Dictionary, decision: Dictionary) -> void:
-	var text := "[M%d T%02d] PLAYER: %s | BOT: %s\n" % [match_number, turn,
-		DuelRules.NAMES[selected_player], DuelRules.NAMES[selected_bot]]
-	text += "Ammo: P %d→%d | B %d→%d\n" % [before_player.ammo, result.left.ammo, before_bot.ammo, result.right.ammo]
-	text += "Shield: P %d→%d | B %d→%d\n" % [before_player.shields, result.left.shields, before_bot.shields, result.right.shields]
+		selected_player: int, selected_bot: int, result: Dictionary, decision: Dictionary = {},
+		player_name: String = "Player", opponent_name: String = "Bot") -> void:
+	var is_solo := (player_name == "Player" or player_name == "PLAYER") and (opponent_name == "Bot" or opponent_name == "BOT")
+	var header_left: String = "PLAYER" if is_solo else player_name.to_upper()
+	var header_right: String = "BOT" if is_solo else opponent_name.to_upper()
+	var text := "[M%d T%02d] %s: %s | %s: %s\n" % [match_number, turn,
+		header_left, DuelRules.NAMES[selected_player],
+		header_right, DuelRules.NAMES[selected_bot]]
+	if is_solo:
+		text += "Ammo: P %d→%d | B %d→%d\n" % [before_player.ammo, result.left.ammo, before_bot.ammo, result.right.ammo]
+		text += "Shield: P %d→%d | B %d→%d\n" % [before_player.shields, result.left.shields, before_bot.shields, result.right.shields]
+	else:
+		text += "Ammo: P1 %d→%d | P2 %d→%d\n" % [before_player.ammo, result.left.ammo, before_bot.ammo, result.right.ammo]
+		text += "Shield: P1 %d→%d | P2 %d→%d\n" % [before_player.shields, result.left.shields, before_bot.shields, result.right.shields]
 	var events: Array[String] = []
-	var names := ["Player", "Bot"]
+	var names := ["Player", "Bot"] if is_solo else [player_name, opponent_name]
 	var chosen := [selected_player, selected_bot]
 	for i in range(2):
 		if chosen[i] != result.actions[i]:
@@ -75,7 +84,12 @@ func record_turn(turn: int, before_player: Dictionary, before_bot: Dictionary,
 	text += "Shots/actions: %s\n" % " ".join(events)
 	var winner := ""
 	if not result.left.alive or not result.right.alive:
-		winner = "PLAYER" if result.left.alive else ("BOT" if result.right.alive else "DRAW")
+		if result.left.alive and not result.right.alive:
+			winner = "PLAYER" if is_solo else player_name.to_upper()
+		elif result.right.alive and not result.left.alive:
+			winner = "BOT" if is_solo else opponent_name.to_upper()
+		else:
+			winner = "DRAW"
 	text += "Result: %s\n" % (("%s wins." % winner) if winner != "" else (
 		"Shootout draw. Both bullets consumed; duel continues." if result.clash else "Duel continues."))
 	# Metadata comes from the actual weighted choice, never a reconstructed model.

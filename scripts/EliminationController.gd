@@ -8,6 +8,11 @@ var audio: Node
 var active: bool = false
 var previewing: bool = false
 var effect_id: String = "classic"
+var requested_effect: String = "classic"
+var rng := RandomNumberGenerator.new()
+var winner: Dictionary = {}
+var cinematic: Control
+var skip_button: Button
 var target: Dictionary = {}
 var surface: Control
 var design: Control
@@ -18,6 +23,7 @@ var tween: Tween
 var stamp_count: int = 0
 
 func _ready() -> void:
+	rng.randomize()
 	layer = 10
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	surface = Control.new()
@@ -48,16 +54,24 @@ func _label(parent: Control, text: String, rect: Rect2, font_size: int) -> Label
 	parent.add_child(label)
 	return label
 
-func play(id: String, defeated: Dictionary, preview: bool = false) -> bool:
+func play(id: String, defeated: Dictionary, preview: bool = false, victor: Dictionary = {}) -> bool:
 	cancel()
-	effect_id = Effects.resolve_id(id)
+	requested_effect = Effects.resolve_id(id)
+	effect_id = Effects.choose(requested_effect, rng)
 	if effect_id == "classic" and not preview:
 		return false
 	active = true
 	previewing = preview
 	target = defeated.duplicate(true)
+	winner = victor.duplicate(true) if not victor.is_empty() else defeated.duplicate(true)
 	for child in design.get_children():
 		child.free()
+	portrait = null
+	paper = null
+	stamp = null
+	cinematic = null
+	if effect_id in ["dead_mans_hand", "high_noon", "smoke_mirrors"]:
+		return _play_cinematic(preview)
 	paper = Poster.new()
 	paper.position = Vector2(425, 105)
 	paper.size = Vector2(430, 490)
@@ -89,8 +103,7 @@ func play(id: String, defeated: Dictionary, preview: bool = false) -> bool:
 	stamp.scale = Vector2(1.65, 1.65)
 	stamp.modulate.a = 0.0
 	paper.add_child(stamp)
-	var hint := _label(design, "COSMETIC PREVIEW · Click or press a key to close" if preview else "Click or press a key to skip", Rect2(240, 625, 800, 28), 15)
-	hint.add_theme_color_override("font_color", Poster.PAPER)
+	_build_skip_hint(preview)
 	surface.show()
 	surface.modulate.a = 1.0
 	paper.modulate.a = 0.0
@@ -114,10 +127,53 @@ func play(id: String, defeated: Dictionary, preview: bool = false) -> bool:
 	tween.tween_callback(skip)
 	return true
 
+func _build_skip_hint(preview: bool) -> void:
+	var hint := _label(design, "COSMETIC PREVIEW · Click or press a key to close" if preview else "Click or press a key to skip", Rect2(240, 645, 800, 28), 15)
+	hint.add_theme_color_override("font_color", Poster.PAPER)
+	skip_button = Button.new()
+	skip_button.text = "CLOSE PREVIEW" if preview else "SKIP FINISHER"
+	skip_button.position = Vector2(1020, 643)
+	skip_button.size = Vector2(220, 36)
+	skip_button.focus_mode = Control.FOCUS_NONE
+	skip_button.add_theme_stylebox_override("normal", Poster.frame_style(Color("332a2b")))
+	skip_button.add_theme_color_override("font_color", Poster.PAPER)
+	skip_button.pressed.connect(skip)
+	design.add_child(skip_button)
+
+func _play_cinematic(preview: bool) -> bool:
+	cinematic = preload("res://scripts/FinisherVisual.gd").new()
+	cinematic.configure(effect_id, winner)
+	design.add_child(cinematic)
+	portrait = cinematic.portrait
+	_build_skip_hint(preview)
+	surface.show()
+	surface.modulate.a = 1.0 if preview else 0.0
+	tween = create_tween()
+	if not preview:
+		# Same hit/gunfire breathing room as the existing WANTED presentation.
+		tween.tween_interval(0.18)
+		tween.tween_property(surface, "modulate:a", 1.0, 0.12)
+	var animation_seconds: float = Effects.definition(effect_id).duration - 0.44
+	tween.tween_method(cinematic.set_progress, 0.0, 1.0, animation_seconds)
+	tween.tween_property(surface, "modulate:a", 0.0, 0.14)
+	tween.tween_callback(skip)
+	return true
+
 func _stamp_impact() -> void:
 	stamp_count += 1
 	if is_instance_valid(audio):
 		audio.play_effect("stamp")
+
+func view_poster(defeated: Dictionary) -> void:
+	# Read-only inspection of the existing poster, without replaying the stamp
+	# sound or emitting a match completion. Closing returns to the same results.
+	play("wanted_eliminated", defeated, true)
+	tween.kill()
+	tween = null
+	paper.modulate.a = 1.0
+	stamp.modulate.a = 1.0
+	stamp.scale = Vector2.ONE
+	skip_button.text = "BACK TO RESULTS"
 
 func skip() -> void:
 	if not active:

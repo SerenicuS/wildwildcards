@@ -42,6 +42,8 @@ func run() -> void:
 	check(stream != null and stream.get_length() > 0.0 and stream.get_length() < 0.1, "Short tick asset loads")
 	check(not AudioServer.is_bus_mute(AudioServer.get_bus_index(voice.bus)) and audio.sfx_volume_db == 0.0,
 		"Tick bus unmuted and SFX trim at normal default")
+	# These checks cover the original 1.0 s mode (Hard); set in memory only.
+	game.settings.set_difficulty("hard")
 	game.start_duel()
 	check(audio.tick_count == 0, "No ticking during introduction")
 	game.intro_start = Time.get_ticks_usec() - 2800000
@@ -70,8 +72,10 @@ func run() -> void:
 	audio.sfx_volume_db = -3.0
 	check(is_equal_approx(voice.volume_db, -23.0), "Tick respects existing volume control")
 	audio.sfx_volume_db = 0.0
+	game.last_pause_toggle_usec -= 60000 # Synthetic pause/resume respects existing debounce.
 	game.toggle_pause()
 	game._process(0.0)
+	game.last_pause_toggle_usec -= 60000 # Synthetic pause/resume respects existing debounce.
 	game.toggle_pause()
 	check(audio.tick_count == game.turn, "Pause/resume adds no ticks")
 	game.selected = DuelRules.Action.NONE
