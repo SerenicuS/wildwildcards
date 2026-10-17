@@ -46,6 +46,9 @@ A single wrong decision can end everything.
 - Customizable WANTED posters
 - Match history and replay system
 - Persistent player profiles and statistics
+- Offline Tournament Circuit with 8, 16, or 32 participants
+- Tournament-specific gunslinger dossiers, statistics, and rankings
+- Accelerated AI tournament simulation and spectator mode
 
 ---
 
@@ -153,6 +156,44 @@ Both players select their actions simultaneously using separate keyboard control
 Local multiplayer preserves the same combat rules as solo play.
 
 No internet connection is required.
+
+### 🏆 Tournament Circuit
+
+Enter an offline single-elimination championship against a field of AI gunslingers.
+
+Choose between **8, 16, or 32 participants**, with 32 selected by default. Every tournament includes one human competitor and a full roster of unique AI opponents.
+
+| Tournament size | AI opponents | Rounds | Total matches |
+|-----------------|-------------:|-------:|--------------:|
+| 8 entrants | 7 | 3 | 7 |
+| 16 entrants | 15 | 4 | 15 |
+| 32 entrants | 31 | 5 | 31 |
+
+- Play your matches using the standard Reload / Shield / Shoot rules.
+- Follow the single-elimination bracket from the opening round to the championship.
+- Face opponents with consistent names, personalities, and cosmetics throughout that tournament.
+- View tournament-specific participant profiles, W/L statistics, and placements.
+- Watch other AI matchups catch up through accelerated **4×**, **8×**, or **Instant** simulation.
+- After elimination, spectate the rest of the competition or finish it instantly to reveal the champion.
+- Review tournament records and archived results.
+
+**All bot-versus-bot matches use the existing combat rules and AI decision-making.** Their winners are not simply chosen by a coin flip.
+
+#### Tournament Gunslinger Profiles & Rankings
+
+Each tournament maintains its own isolated roster of gunslingers and records. A participant dossier includes their name, appearance, revolver cosmetics, temperament, current status, and tournament results.
+
+Tracked records include:
+
+- Overall wins and losses
+- Wins and losses against the human player
+- Wins and losses against AI opponents
+- Elimination round and eliminator
+- Tournament placement
+
+Rankings reflect **how far a participant advances in the bracket**, not just their win percentage. For a completed 32-player tournament, placements are **#1 champion**, **#2 runner-up**, **tied #3**, **tied #5**, **tied #9**, and **tied #17**.
+
+These profiles and rankings are **exclusive to their own tournament**. Solo Duel, Endless Gauntlet, and other tournaments do not contribute to their records. Participant dossiers are accessible through the tournament bracket; a standalone searchable registry is a potential future UI enhancement.
 
 ---
 
@@ -444,30 +485,38 @@ The core three-action combat system will remain central to the experience.
 - [x] Match history
 - [x] Turn-by-turn replays
 
+## ✅ Phase 4 — Tournament Circuit
+
+**Status: Completed through Stage 7C**
+
+- [x] 8-, 16-, and 32-player tournaments
+- [x] Headless AI-versus-AI matches
+- [x] Tournament participant profiles and rankings
+- [x] Accelerated catch-up and spectator mode
+- [x] Tournament history and archives
+
 ---
 
 # 🚧 Upcoming Expansions
 
-## 🏆 Expansion I — The Tournament Circuit
+## ✅ Expansion I — The Tournament Circuit
 
-**Status: Planned**
+**Status: Completed through Stage 7C**
 
-Enter structured Western dueling tournaments.
+Take on an offline single-elimination championship with a full cast of AI gunslingers.
 
-Planned features:
+- [x] Configurable 8-, 16-, and 32-participant brackets
+- [x] One human competitor and the remaining AI opponents
+- [x] AI-versus-AI duels using the standard combat resolver
+- [x] Consistent tournament-specific bot names, appearances, and personalities
+- [x] Tournament-specific participant dossiers and W/L records
+- [x] Elimination-based rankings with tied placements
+- [x] Scrollable bracket with participant profiles
+- [x] Accelerated tournament catch-up (4×, 8×, Instant)
+- [x] Spectator mode after player elimination
+- [x] Tournament results and archives
 
-- 8-player tournaments
-- 16-player tournaments
-- Bot-versus-bot match simulation
-- Tournament brackets
-- Recurring gunslinger identities
-- Championship matches
-- Tournament history
-- Tournament victory posters
-
-Players will progress through a series of opponents to become tournament champions.
-
-The Tournament Circuit will introduce a foundation for larger championship systems.
+**Potential follow-up polish:** A dedicated searchable and sortable Gunslinger Registry outside the bracket, and richer tournament presentation. These are not required to play the completed Tournament Circuit.
 
 ## 🌎 Expansion II — The Frontier
 
