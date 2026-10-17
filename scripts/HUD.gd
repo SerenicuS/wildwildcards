@@ -124,7 +124,7 @@ func _ready() -> void:
 		else: play_requested.emit())
 	tertiary.pressed.connect(func():
 		if overlay_mode == "pause": play_requested.emit()
-		elif overlay_mode == "gauntlet_next": poster_requested.emit())
+		elif overlay_mode in ["gauntlet_next", "tournament_champ"]: poster_requested.emit())
 	secondary.pressed.connect(func():
 		if overlay_mode == "menu": quit_requested.emit()
 		else: menu_requested.emit())
@@ -149,17 +149,19 @@ func show_overlay(mode: String, title: String, copy: String) -> void:
 	overlay.size = Vector2(410, 310) if compact else Vector2(670, 310)
 	overlay_title.size.x = 370 if compact else 630
 	overlay_copy.size.x = 370 if compact else 630
-	if is_pause:
+	var is_champ: bool = mode == "tournament_champ"
+	if is_pause or is_champ:
 		primary.position = Vector2(333, 406)
 		primary.size = Vector2(195, 60)
 		tertiary.position = Vector2(543, 406)
 		tertiary.size = Vector2(195, 60)
 		secondary.position = Vector2(753, 406)
 		secondary.size = Vector2(195, 60)
-		primary.text = "RESUME"
-		tertiary.text = "RESTART DUEL"
+		primary.text = "RESUME" if is_pause else "RETURN TO BRACKET"
+		tertiary.text = "RESTART DUEL" if is_pause else "COMMEMORATIVE POSTER"
 		secondary.text = "MAIN MENU"
-		primary.add_theme_font_size_override("font_size", 19)
+		primary.add_theme_font_size_override("font_size", 16 if is_champ else 19)
+		tertiary.add_theme_font_size_override("font_size", 13 if is_champ else 18)
 		secondary.add_theme_font_size_override("font_size", 19)
 		tertiary.show()
 	else:

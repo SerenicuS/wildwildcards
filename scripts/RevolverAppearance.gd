@@ -11,6 +11,16 @@ const LENGTHS := {"peacemaker": 32.0, "schofield": 31.0, "python": 48.0, "cobra"
 static func defaults() -> Dictionary:
 	return {"revolver_model": "peacemaker", "revolver_finish": "iron", "revolver_grip": "walnut"}
 
+static func randomized(rng: RandomNumberGenerator) -> Dictionary:
+	var models: Array = MODELS.keys()
+	var finishes: Array = FINISHES.keys()
+	var grips: Array = GRIPS.keys()
+	return {
+		"revolver_model": models[rng.randi_range(0, models.size() - 1)],
+		"revolver_finish": finishes[rng.randi_range(0, finishes.size() - 1)],
+		"revolver_grip": grips[rng.randi_range(0, grips.size() - 1)]
+	}
+
 static func sanitize(value: Variant) -> Dictionary:
 	var result := defaults()
 	if value is Dictionary:

@@ -1,7 +1,7 @@
 extends Node
 
 enum State { MAIN_MENU, COUNTDOWN, PLAYING, GAME_OVER, PAUSED, AWAITING_CONTINUE, EXIT_CONFIRM }
-enum GameMode { SOLO, LOCAL_2P, GAUNTLET }
+enum GameMode { SOLO, LOCAL_2P, GAUNTLET, TOURNAMENT }
 
 const USEC_PER_SECOND: int = 1000000
 const INTRO_USEC: int = 2800000
@@ -11,6 +11,7 @@ var match_difficulty: String = ""
 var match_arena: String = ""
 var arena_rng := RandomNumberGenerator.new()
 var gauntlet := preload("res://scripts/GauntletRun.gd").new()
+var tournament := preload("res://scripts/TournamentCircuit.gd").new()
 var gauntlet_defeated: Dictionary = {}
 var exit_intent: String = ""
 var exit_snapshot: Dictionary = {}
@@ -122,11 +123,15 @@ func _ready() -> void:
 	main_menu.audio = audio
 	main_menu.profile = profile
 	main_menu.history_store = history
+	tournament.load_active()
+	main_menu.tournament = tournament
 	menu_layer.add_child(main_menu)
 	main_menu.elimination_preview_requested.connect(func(id: String, target: Dictionary): elimination.play(id, target, true))
+	main_menu.commemorative_poster_requested.connect(func(target: Dictionary): elimination.view_poster(target))
 	main_menu.solo_requested.connect(start_duel)
 	main_menu.gauntlet_requested.connect(start_gauntlet)
 	main_menu.local_requested.connect(start_local_duel)
+	main_menu.tournament_requested.connect(start_tournament_match)
 	main_menu.local_appearance_changed.connect(_apply_profile)
 	main_menu.replay_requested.connect(_open_replay)
 	main_menu.quit_requested.connect(_request_quit)
@@ -139,7 +144,20 @@ func _ready() -> void:
 func _apply_profile() -> void:
 	arena.set_player_appearance(profile.appearance)
 	hud.is_gauntlet = mode == GameMode.GAUNTLET
-	if mode != GameMode.LOCAL_2P:
+	if mode == GameMode.LOCAL_2P:
+		arena.set_player_appearance(main_menu.local_appearance(0))
+		arena.set_opponent_appearance(main_menu.local_appearance(1))
+		hud.player_display_name = "Player 1"
+		hud.opponent_display_name = "Player 2"
+		hud.is_local_2p = true
+	elif mode == GameMode.TOURNAMENT:
+		hud.player_display_name = profile.display_name
+		hud.is_local_2p = false
+		var opp: Dictionary = tournament.get_human_opponent()
+		if not opp.is_empty():
+			arena.set_opponent_appearance(opp.appearance)
+			hud.opponent_display_name = opp.name
+	else:
 		arena.set_opponent_appearance({"hat": "classic", "outfit": "rust", "accessory": "none"})
 		hud.player_display_name = profile.display_name
 		hud.opponent_display_name = "Copper Jack"
@@ -147,12 +165,6 @@ func _apply_profile() -> void:
 		if mode == GameMode.GAUNTLET and not gauntlet.opponent.is_empty():
 			arena.set_opponent_appearance(gauntlet.opponent.appearance)
 			hud.opponent_display_name = gauntlet.opponent.name
-	else:
-		arena.set_player_appearance(main_menu.local_appearance(0))
-		arena.set_opponent_appearance(main_menu.local_appearance(1))
-		hud.player_display_name = "Player 1"
-		hud.opponent_display_name = "Player 2"
-		hud.is_local_2p = true
 	_refresh_hud_state()
 
 func _exit_tree() -> void:
@@ -226,9 +238,28 @@ func start_local_duel() -> void:
 	mode = GameMode.LOCAL_2P
 	_start_match_flow()
 
+func start_tournament_match() -> void:
+	if gauntlet.active:
+		_request_gauntlet_exit("tournament")
+		return
+	if not tournament.has_active_tournament():
+		return
+	mode = GameMode.TOURNAMENT
+	var hm := tournament.get_human_match()
+	if hm.is_empty():
+		return
+	match_arena = hm.arena
+	_start_match_flow()
+
 func _start_match_flow(rematch: bool = false) -> void:
 	if mode == GameMode.GAUNTLET:
 		match_arena = gauntlet.arena_id
+	elif mode == GameMode.TOURNAMENT:
+		var hm := tournament.get_human_match()
+		if not hm.is_empty() and not hm.arena.is_empty():
+			match_arena = hm.arena
+		else:
+			match_arena = settings.Arenas.choose(settings.preferred_arena, arena_rng)
 	elif not rematch or match_arena.is_empty():
 		match_arena = settings.Arenas.choose(settings.preferred_arena, arena_rng)
 	arena.set_arena_id(match_arena)
@@ -242,11 +273,20 @@ func _start_match_flow(rematch: bool = false) -> void:
 	audio.stop_all()
 	combat_log.end_match("NONE (restarted)", turn)
 	
-	if mode != GameMode.LOCAL_2P:
+	if mode == GameMode.LOCAL_2P:
+		combat_log.start_match({}, "LOCAL 1v1 DUEL")
+	elif mode == GameMode.TOURNAMENT:
+		var opp := tournament.get_human_opponent()
+		if not opp.is_empty():
+			bot.set_personality(opp.personality)
+		else:
+			bot.start_match()
+		var hm := tournament.get_human_match()
+		var r_name: String = hm.round_name if not hm.is_empty() else "CIRCUIT"
+		combat_log.start_match(bot.personality_snapshot(), "TOURNAMENT - " + r_name.to_upper())
+	else:
 		bot.start_match()
 		combat_log.start_match(bot.personality_snapshot(), "ENDLESS GAUNTLET" if mode == GameMode.GAUNTLET else "SOLO")
-	else:
-		combat_log.start_match({}, "LOCAL 1v1 DUEL")
 	
 	get_tree().paused = false
 	player.reset()
@@ -267,15 +307,16 @@ func _start_match_flow(rematch: bool = false) -> void:
 	
 	_apply_profile()
 	
-	match_difficulty = gauntlet.difficulty if mode == GameMode.GAUNTLET else settings.difficulty
+	match_difficulty = gauntlet.difficulty if mode == GameMode.GAUNTLET else (tournament.difficulty if mode == GameMode.TOURNAMENT else settings.difficulty)
 	turn_usec = settings.difficulty_turn_usec(match_difficulty)
 	intro_start = Time.get_ticks_usec()
 	_refresh_hud_state()
 	hud.update_timer(1.0, 1, turn_seconds())
 	hud.banner.text = "3"
-	history.begin_match({"mode": ["solo", "local", "gauntlet"][mode], "difficulty": match_difficulty,
-		"arena": match_arena, "turn_seconds": turn_seconds(), "run_id": gauntlet_run_id if mode == GameMode.GAUNTLET else "",
-		"run_duel": gauntlet.duel_number if mode == GameMode.GAUNTLET else 0,
+	history.begin_match({"mode": ["solo", "local", "gauntlet", "tournament"][mode], "difficulty": match_difficulty,
+		"arena": match_arena, "turn_seconds": turn_seconds(),
+		"run_id": gauntlet_run_id if mode == GameMode.GAUNTLET else (tournament.tournament_id if mode == GameMode.TOURNAMENT else ""),
+		"run_duel": gauntlet.duel_number if mode == GameMode.GAUNTLET else (tournament.current_round + 1 if mode == GameMode.TOURNAMENT else 0),
 		"actors": [{"name": hud.player_display_name, "appearance": arena.player_appearance.duplicate(), "coat": arena.player_coat().to_html()},
 			{"name": hud.opponent_display_name, "appearance": arena.opponent_appearance.duplicate(), "coat": arena.opponent_coat().to_html()}]})
 
@@ -401,7 +442,7 @@ func resolve_turn() -> void:
 			var defeated_name: String = ("Copper Jack" if winner_is_p1 else profile.display_name) if mode == GameMode.SOLO else (p2_name if winner_is_p1 else p1_name)
 			var defeated_app: Dictionary = ({} if winner_is_p1 else arena.player_appearance) if mode == GameMode.SOLO else (arena.opponent_appearance if winner_is_p1 else arena.player_appearance)
 			var defeated_coat: Color = (Color("ec8b73") if winner_is_p1 else arena.player_coat()) if mode == GameMode.SOLO else (arena.opponent_coat() if winner_is_p1 else arena.player_coat())
-			if mode == GameMode.GAUNTLET:
+			if mode == GameMode.GAUNTLET or mode == GameMode.TOURNAMENT:
 				defeated_name = p2_name if winner_is_p1 else profile.display_name
 				defeated_app = arena.opponent_appearance if winner_is_p1 else arena.player_appearance
 				defeated_coat = arena.opponent_coat() if winner_is_p1 else arena.player_coat()
@@ -426,6 +467,38 @@ func _show_match_result() -> void:
 		else:
 			hud.show_overlay("gauntlet_end", "GAUNTLET ENDED", "Final streak: %d\nBest streak: %d\nPress R to start a fresh run" % [gauntlet.streak, profile.gauntlet_records.best_streak])
 			hud.primary.text = "RESTART GAUNTLET"
+		return
+	elif mode == GameMode.TOURNAMENT:
+		var winner_is_p1: bool = player.alive
+		var rep_id: String = history.matches[0].id if not history.matches.is_empty() else ""
+		var current_hm: Dictionary = tournament.get_human_match()
+		var current_r_name: String = current_hm.round_name if not current_hm.is_empty() else "Match"
+		tournament.record_human_match_result(winner_is_p1, turn, rep_id, false)
+		if winner_is_p1:
+			if tournament.current_round == tournament.total_rounds - 1 and tournament.is_round_complete(tournament.current_round):
+				profile.record_tournament_result(true, "Champion")
+				hud.show_overlay("tournament_champ", "TOURNAMENT CHAMPION!", "You defeated the finest gunslingers in the territory!\nChampionship Title Claimed.\nCommemorative WANTED poster awarded.")
+				hud.primary.text = "RETURN TO BRACKET"
+				hud.secondary.text = "MAIN MENU"
+				hud.tertiary.text = "COMMEMORATIVE POSTER"
+				hud.tertiary.show()
+			else:
+				var uncompleted := tournament.get_uncompleted_bot_matches_in_round(tournament.current_round)
+				if uncompleted.is_empty():
+					tournament.advance_to_next_round()
+					var next_r: String = tournament.get_round_name(tournament.current_round, tournament.total_rounds)
+					hud.show_overlay("tournament_advance", "ROUND ADVANCED!", "Victory in %s!\nAdvancing to %s.\nPrepare for your next opponent." % [current_r_name, next_r])
+					hud.primary.text = "NEXT MATCH"
+					hud.secondary.text = "TOURNAMENT BRACKET"
+				else:
+					hud.show_overlay("tournament_catchup", "VICTORY IN %s!" % current_r_name.to_upper(), "Duel won in %d turns!\n%d concurrent bot duels remaining in this round.\nEnter Catch-Up to simulate." % [turn, uncompleted.size()])
+					hud.primary.text = "CATCH-UP (SIMULATE)"
+					hud.secondary.text = "TOURNAMENT BRACKET"
+		else:
+			profile.record_tournament_result(false, tournament.finish_position)
+			hud.show_overlay("tournament_out", "ELIMINATED", "Eliminated in %s.\nYou can spectate the remaining frontier matches or finish instantly." % tournament.finish_position)
+			hud.primary.text = "SPECTATE CIRCUIT"
+			hud.secondary.text = "VIEW BRACKET"
 		return
 	var pace: String = "%s %.1f s" % [settings.DIFFICULTIES[match_difficulty].label, turn_seconds()] if settings.DIFFICULTIES.has(match_difficulty) else "%.1f s" % turn_seconds()
 	if mode == GameMode.LOCAL_2P:
@@ -473,6 +546,25 @@ func _on_result_action() -> void:
 			start_gauntlet()
 		elif state == State.PAUSED:
 			restart_current_duel()
+	elif mode == GameMode.TOURNAMENT:
+		if state == State.GAME_OVER:
+			if hud.overlay_mode == "tournament_champ":
+				_return_to_tournament_bracket()
+			elif hud.overlay_mode == "tournament_advance":
+				start_tournament_match()
+			elif hud.overlay_mode == "tournament_catchup":
+				_show_menu_confirmed()
+				main_menu.show_page("tournament_catchup")
+			elif hud.overlay_mode == "tournament_out":
+				_show_menu_confirmed()
+				main_menu.tournament_spectate_mode = true
+				main_menu.show_page("tournament_catchup")
+			elif tournament.status == "completed" or tournament.status == "eliminated":
+				_return_to_tournament_bracket()
+			elif tournament.status == "active":
+				start_tournament_match()
+		elif state == State.PAUSED:
+			restart_current_duel()
 	else:
 		restart_current_duel()
 
@@ -500,6 +592,8 @@ func _continue_gauntlet() -> void:
 func _view_gauntlet_poster() -> void:
 	if state == State.AWAITING_CONTINUE and not elimination.active and not gauntlet_defeated.is_empty():
 		elimination.view_poster(gauntlet_defeated)
+	elif hud.overlay_mode == "tournament_champ" and not elimination.active:
+		elimination.view_poster({"name": profile.display_name, "appearance": profile.appearance, "coat": arena.player_coat()})
 
 func _request_quit() -> void:
 	if gauntlet.active:
@@ -507,9 +601,15 @@ func _request_quit() -> void:
 	else:
 		get_tree().quit()
 
+func _return_to_tournament_bracket() -> void:
+	_show_menu_confirmed()
+	main_menu.show_page("tournament")
+
 func _menu_or_cancel_exit() -> void:
 	if state == State.EXIT_CONFIRM:
 		_cancel_gauntlet_exit()
+	elif mode == GameMode.TOURNAMENT:
+		_return_to_tournament_bracket()
 	else:
 		show_menu()
 
@@ -587,7 +687,8 @@ func _open_replay(record: Dictionary) -> void:
 	add_child(replay_viewer)
 	replay_viewer.closed.connect(func():
 		main_menu.show()
-		main_menu.show_page("history")
+		var ret_page: String = main_menu.replay_return_page if "replay_return_page" in main_menu else "history"
+		main_menu.show_page(ret_page)
 		replay_viewer.queue_free())
 
 func _perform_exit_intent(intent: String) -> void:
@@ -596,6 +697,7 @@ func _perform_exit_intent(intent: String) -> void:
 		"restart": start_gauntlet()
 		"solo": start_duel()
 		"local": start_local_duel()
+		"tournament": start_tournament_match()
 		_: _show_menu_confirmed()
 
 func toggle_pause() -> void:
@@ -632,4 +734,6 @@ func toggle_pause() -> void:
 		hud.show_overlay("pause", "PAUSED", "Take a breath.\nThe turn clock is frozen.\nESC or Resume to return to the duel.")
 		if mode == GameMode.GAUNTLET:
 			hud.tertiary.text = "RESTART RUN"
+		elif mode == GameMode.TOURNAMENT:
+			hud.tertiary.text = "RESTART DUEL"
 		get_tree().paused = true

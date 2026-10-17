@@ -58,7 +58,7 @@ static func actor(value: Variant) -> Dictionary:
 		"coat": Color.from_string(text(source.get("coat")), Looks.COLORS[look.outfit]).to_html()}
 
 static func validate_record(value: Variant) -> Dictionary:
-	if not value is Dictionary or text(value.get("id")).is_empty() or not value.get("mode") in ["solo", "local", "gauntlet"]:
+	if not value is Dictionary or text(value.get("id")).is_empty() or not value.get("mode") in ["solo", "local", "gauntlet", "tournament"]:
 		return {}
 	var turns: Variant = value.get("turns")
 	var actors: Variant = value.get("actors")

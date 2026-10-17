@@ -6,6 +6,8 @@ const Appearance = preload("res://scripts/CharacterAppearance.gd")
 const Effects = preload("res://scripts/EliminationEffects.gd")
 const VERSION: int = 5
 const GAUNTLET_DEFAULTS := {"best_streak": 0, "total_runs": 0, "duel_victories": 0}
+const TOURNAMENT_DEFAULTS := {"tournaments_played": 0, "tournaments_won": 0, "best_finish": "None"}
+const FINISH_RANKS := {"None": 0, "Quarterfinals": 1, "Semifinals": 2, "Runner-Up": 3, "Champion": 4}
 const STAT_KEYS := ["matches_played", "wins", "losses", "total_turns", "reload_actions", "shield_actions",
 	"shoot_actions", "none_actions", "shots_fired", "successful_eliminations", "shots_blocked",
 	"shield_turns_against_shoot", "reload_turns_against_shoot", "shootout_draws",
@@ -17,6 +19,7 @@ var outfit_presets: Array[Dictionary] = []
 var equipped_elimination_effect: String = Effects.FALLBACK
 var stats: Dictionary = {}
 var gauntlet_records: Dictionary = GAUNTLET_DEFAULTS.duplicate()
+var tournament_records: Dictionary = TOURNAMENT_DEFAULTS.duplicate()
 var _gauntlet_active: bool = false
 var _gauntlet_last_duel: int = 0
 var load_notice: String = ""
@@ -100,6 +103,15 @@ func load_profile() -> void:
 			var value: Variant = saved_gauntlet.get(key, 0)
 			if (value is int or value is float) and is_finite(float(value)):
 				gauntlet_records[key] = int(clampf(float(value), 0.0, 1000000000000.0))
+	var saved_tournament: Variant = saved.get("tournament", {})
+	if saved_tournament is Dictionary:
+		for key in ["tournaments_played", "tournaments_won"]:
+			var value: Variant = saved_tournament.get(key, 0)
+			if (value is int or value is float) and is_finite(float(value)):
+				tournament_records[key] = int(clampf(float(value), 0.0, 1000000000000.0))
+		var finish: Variant = saved_tournament.get("best_finish", "None")
+		if finish is String and finish in FINISH_RANKS:
+			tournament_records["best_finish"] = finish
 
 static func clean_name(value: Variant) -> String:
 	if not value is String:
@@ -126,6 +138,7 @@ func save_profile(refresh_backup: bool = false) -> Error:
 	payload.merge(Appearance.Revolver.sanitize(appearance))
 	payload["outfit_presets"] = outfit_presets
 	payload["gauntlet"] = gauntlet_records
+	payload["tournament"] = tournament_records
 	var file := FileAccess.open(path + ".tmp", FileAccess.WRITE)
 	if file == null:
 		last_save_error = FileAccess.get_open_error()
@@ -193,6 +206,18 @@ func _save_gauntlet_records() -> void:
 	save_profile()
 	changed.emit()
 
+func record_tournament_result(won_championship: bool, finish_position: String) -> void:
+	tournament_records.tournaments_played += 1
+	if won_championship:
+		tournament_records.tournaments_won += 1
+	var current_rank: int = int(FINISH_RANKS.get(tournament_records.best_finish, 0))
+	var new_rank: int = int(FINISH_RANKS.get(finish_position, 0))
+	if new_rank > current_rank:
+		tournament_records.best_finish = finish_position
+	_dirty = true
+	save_profile()
+	changed.emit()
+
 func reset_stats() -> Error:
 	return _reset(false)
 
@@ -203,10 +228,11 @@ func _reset(identity_too: bool) -> Error:
 	if is_match_active():
 		return ERR_BUSY
 	var previous := {"name": display_name, "appearance": appearance.duplicate(), "effect": equipped_elimination_effect,
-		"stats": stats.duplicate(), "gauntlet": gauntlet_records.duplicate(), "presets": outfit_presets.duplicate(true), "revision": _reset_revision, "dirty": _dirty}
+		"stats": stats.duplicate(), "gauntlet": gauntlet_records.duplicate(), "tournament": tournament_records.duplicate(), "presets": outfit_presets.duplicate(true), "revision": _reset_revision, "dirty": _dirty}
 	for key in stats:
 		stats[key] = 0
 	gauntlet_records = GAUNTLET_DEFAULTS.duplicate()
+	tournament_records = TOURNAMENT_DEFAULTS.duplicate()
 	if identity_too:
 		outfit_presets.clear()
 		display_name = "Gunslinger"
@@ -220,6 +246,7 @@ func _reset(identity_too: bool) -> Error:
 		equipped_elimination_effect = previous.effect
 		stats = previous.stats
 		gauntlet_records = previous.gauntlet
+		tournament_records = previous.tournament
 		outfit_presets = previous.presets
 		_reset_revision = previous.revision
 		_dirty = previous.dirty

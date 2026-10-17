@@ -40,7 +40,8 @@ func write_text(path: String, text: String) -> void:
 func settle() -> void:
 	await process_frame
 	await process_frame
-	await RenderingServer.frame_post_draw
+	if DisplayServer.get_name() != "headless":
+		await RenderingServer.frame_post_draw
 
 func key(code: int) -> void:
 	for pressed in [true, false]:
@@ -68,16 +69,26 @@ func command(console: Node, text: String) -> void:
 
 func capture(name_value: String) -> void:
 	await settle()
-	if "--capture" in OS.get_cmdline_user_args():
+	if "--capture" in OS.get_cmdline_user_args() and DisplayServer.get_name() != "headless":
 		root.get_texture().get_image().save_png("res://.godot/wanted_%s.png" % name_value)
 
 func _initialize() -> void:
+	var watchdog := create_timer(30.0)
+	watchdog.timeout.connect(func():
+		push_error("FAILURE: test_profile_resets.gd watchdog timeout after 30 seconds")
+		quit(1)
+	)
 	call_deferred("run")
 
 func run() -> void:
 	var stats_restart: bool = "--verify-stats" in OS.get_cmdline_user_args()
 	var profile_restart: bool = "--verify-profile" in OS.get_cmdline_user_args()
+	print("[diag] Starting test_profile_resets (mode: %s, display: %s)" % [
+		"stats_restart" if stats_restart else ("profile_restart" if profile_restart else "standard"),
+		DisplayServer.get_name()
+	])
 	if not stats_restart and not profile_restart:
+		print("[diag] Writing test fixtures to .godot/...")
 		write_text(TEST_PATH, JSON.stringify(fixture()))
 		write_text(TEST_PATH + ".bak", JSON.stringify(fixture()))
 		var settings := ConfigFile.new()
@@ -86,6 +97,7 @@ func run() -> void:
 		settings.set_value("display", "fullscreen", false)
 		settings.save(SETTINGS_PATH)
 	var settings_before: String = FileAccess.get_file_as_string(SETTINGS_PATH)
+	print("[diag] Initializing GameManager with test profile/settings...")
 	var game = Main.new()
 	game.settings.path = SETTINGS_PATH
 	game.profile.path = TEST_PATH
@@ -97,11 +109,13 @@ func run() -> void:
 	menu.show_page("profile")
 	await settle()
 	if stats_restart:
+		print("[diag] Executing stats_restart verification branch...")
 		check(zero_stats(profile) and profile.display_name == "Mara Vale" and profile.appearance == Looks.sanitize(EQUIPPED) and
 			profile.equipped_elimination_effect == "smoke_mirrors", "Fresh process preserves identity/appearance/effect and reset stats")
 		check(menu.profile_stat_labels.shots_blocked.text == "0" and menu.profile_portrait.player_appearance == Looks.sanitize(EQUIPPED), "Restart poster reflects reset and equipped portrait")
 		await recovery_checks(profile, false)
 		# Next verify a full reset through the same developer-command input.
+		print("[diag] Verifying full reset_profile via developer console...")
 		await key(KEY_QUOTELEFT)
 		var before: Dictionary = profile.stats.duplicate()
 		await command(console, "reset_profile")
@@ -115,10 +129,12 @@ func run() -> void:
 		await command(console, "confirm_reset_profile")
 		check(FileAccess.get_file_as_string(TEST_PATH) == saved, "Repeated full confirmation cannot execute twice")
 	elif profile_restart:
+		print("[diag] Executing profile_restart verification branch...")
 		check(profile.display_name == "Gunslinger" and profile.appearance == Looks.defaults() and
 			profile.equipped_elimination_effect == "wanted_eliminated" and zero_stats(profile), "Fresh process restores confirmed default profile")
 		await recovery_checks(profile, true)
 	else:
+		print("[diag] Verifying Wanted poster UI and profile display...")
 		check(menu.wanted_paper.visible and not menu.navigation_panel.visible, "Profile uses wanted parchment")
 		check(menu.profile_stat_labels.matches_played.text == "10" and menu.profile_stat_labels.wins.text == "7" and
 			menu.profile_stat_labels.losses.text == "3" and menu.profile_stat_labels.win_rate.text == "70.0%" and
@@ -131,6 +147,7 @@ func run() -> void:
 		check(profile.equip(EQUIPPED) == OK and menu.profile_portrait.player_appearance == Looks.sanitize(EQUIPPED),
 			"Wanted portrait restores equipped fixture")
 		var original: Dictionary = profile.stats.duplicate()
+		print("[diag] Testing console reset confirmations and cancellation rules...")
 		await key(KEY_QUOTELEFT)
 		check(console.panel.visible and profile.stats == original and not console.command_input.has_focus(), "Opening console never resets or steals typing focus")
 		await command(console, "confirm_reset_stats")
@@ -156,6 +173,7 @@ func run() -> void:
 		await command(console, "reset_stats")
 		game.start_duel()
 		check(console.pending_command == "", "Starting match cancels confirmation")
+		print("[diag] Testing match-state reset guard...")
 		for current_state in [Main.State.COUNTDOWN, Main.State.PLAYING, Main.State.PAUSED, Main.State.GAME_OVER]:
 			game.state = current_state
 			var player_before: Dictionary = game.player.snapshot()
@@ -169,6 +187,7 @@ func run() -> void:
 		game.show_menu()
 		menu.show_page("profile")
 		menu.name_edit.text = "Unconfirmed name"
+		print("[diag] Executing confirmed reset_stats via console...")
 		await command(console, "reset_stats")
 		await command(console, "confirm_reset_stats")
 		check(zero_stats(profile), "All lifetime counters reset to zero")
@@ -182,6 +201,7 @@ func run() -> void:
 		await capture("console")
 		await key(KEY_QUOTELEFT)
 		await capture("reset")
+		print("[diag] Standard reset checks passed.")
 	check(FileAccess.get_file_as_string(SETTINGS_PATH) == settings_before and is_equal_approx(game.settings.master_volume, 0.73) and
 		is_equal_approx(game.settings.sfx_volume, 0.42), "Profile resets never touch gameplay settings")
 	game.queue_free()

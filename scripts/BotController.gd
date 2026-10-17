@@ -22,6 +22,13 @@ func start_match() -> void:
 func personality_snapshot() -> Dictionary:
 	return {"aggression": aggression, "caution": caution, "greed": greed}
 
+func set_personality(personality: Dictionary) -> void:
+	aggression = float(personality.get("aggression", aggression))
+	caution = float(personality.get("caution", caution))
+	greed = float(personality.get("greed", greed))
+	previous = DuelRules.Action.NONE
+	last_decision = {}
+
 func choose_action(own: Dictionary, opponent: Dictionary) -> int:
 	# Only public state is accepted; current player selection is never supplied.
 	var weights: Array[float] = [6.0 if own.ammo > 0 else 10.0,
