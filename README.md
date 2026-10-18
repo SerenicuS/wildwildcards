@@ -49,6 +49,8 @@ A single wrong decision can end everything.
 - Offline Tournament Circuit with 8, 16, or 32 participants
 - Tournament-specific gunslinger dossiers, statistics, and rankings
 - Accelerated AI tournament simulation and spectator mode
+- The Frontier career mode with four territories, travel, regional tournaments, and a career journal
+- Searchable tournament Gunslinger Registry and participant dossiers
 
 ---
 
@@ -116,7 +118,7 @@ The challenge comes from making decisions under pressure.
 
 ## 🎯 Game Modes
 
-### 🤠 Solo Duel
+### 🤠 Quick Play (Solo Duel)
 
 Face an AI-controlled gunslinger in a classic one-on-one showdown.
 
@@ -193,13 +195,24 @@ Tracked records include:
 
 Rankings reflect **how far a participant advances in the bracket**, not just their win percentage. For a completed 32-player tournament, placements are **#1 champion**, **#2 runner-up**, **tied #3**, **tied #5**, **tied #9**, and **tied #17**.
 
-These profiles and rankings are **exclusive to their own tournament**. Solo Duel, Endless Gauntlet, and other tournaments do not contribute to their records. Participant dossiers are accessible through the tournament bracket; a standalone searchable registry is a potential future UI enhancement.
+These profiles and rankings are **exclusive to their own tournament**. Solo Duel, Endless Gauntlet, and other tournaments do not contribute to their records. Participant dossiers are accessible through the bracket and the searchable Gunslinger Registry.
+
+### 🌵 The Frontier (Career Mode)
+
+Travel across **Nevada, California, Texas, and Mississippi** through a lightweight, map-based career mode. Visit territory hubs, enter regional tournaments using the existing Tournament Circuit, and review your progress in the Frontier Journal.
+
+- Choose a territory and travel between destinations.
+- Enter regional tournaments whose results are attributed to that territory.
+- Track visited territories, tournament entries, and regional championships.
+- Resume an active tournament through the shared tournament system.
+
+**Current scope:** Territory travel and regional tournament records are implemented. Regional champions, saloon activities, reputation, quests, and legendary titles remain future plans. The Frontier is not an open-world 3D game.
 
 ---
 
 ## 🎮 Controls
 
-### Solo Duel
+### Quick Play (Solo Duel)
 
 | Action | Input |
 |--------|-------|
@@ -377,7 +390,7 @@ Even the ones you'd rather forget.
 
 ---
 
-## 💾 Player Profiles
+## 💾 Player Profiles & Career Records
 
 Wild Wild Cards supports persistent player profiles.
 
@@ -387,11 +400,13 @@ Profile data includes supported settings and records such as:
 - Character appearance
 - Revolver customization
 - Preferred finisher
-- Basic match statistics
+- Mode-specific career statistics and match records, where supported
 - Gauntlet records
 - Saved cosmetic presets
 
-The game also uses versioned save data and recovery safeguards.
+The game also uses versioned save data and recovery safeguards. Statistics may vary with the game version and available historical records.
+
+Tournament completion includes recovery and duplicate-award protections; unexpected shutdowns and storage failures are still worth reporting.
 
 ---
 
@@ -417,7 +432,7 @@ The project prioritizes accessible performance and responsive gameplay.
 3. Extract the downloaded archive if necessary.
 4. Launch the game executable.
 
-> Release builds will be provided when available.
+> If the Releases page has no downloadable build yet, use the source instructions below. Only download builds from the official repository.
 
 ### Running From Source
 
@@ -425,7 +440,7 @@ The project prioritizes accessible performance and responsive gameplay.
 2. Clone the repository:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Wild-Wild-Cards.git
+git clone https://github.com/<YOUR_USERNAME>/Wild-Wild-Cards.git
 ```
 
 3. Open Godot.
@@ -433,242 +448,42 @@ git clone https://github.com/YOUR_USERNAME/Wild-Wild-Cards.git
 5. Allow the editor to import project resources.
 6. Run the project.
 
-Replace `YOUR_USERNAME` with the actual repository owner.
+Replace `<YOUR_USERNAME>` with the actual repository owner before publishing this README.
 
 ---
 
 # 🗺️ Development Roadmap
 
-Wild Wild Cards is being developed in stages.
-
-The goal is to grow a simple Western dueling game into a connected frontier of gunslingers, rivalries, tournaments, and legendary championships.
-
-The core three-action combat system will remain central to the experience.
-
-## ✅ Phase 1 — The Duel
-
-**Status: Completed**
-
-- [x] Reload, Shield, Shoot combat
-- [x] Simultaneous action resolution
-- [x] Ammunition management
-- [x] Three-consecutive-shield restriction
-- [x] Bot decision-making
-- [x] Randomized bot personalities
-- [x] Difficulty presets
-- [x] Main menu and settings
-- [x] Basic player statistics
-
-## ✅ Phase 2 — Gunslinger Identity
-
-**Status: Completed**
-
-- [x] Player profiles
-- [x] Character customization
-- [x] Revolver customization
-- [x] Expanded Western outfits
-- [x] Cosmetic presets
-- [x] Multiple duel arenas
-- [x] Victory finishers
-- [x] WANTED poster customization
-- [x] Local multiplayer
-
-## ✅ Phase 3 — Survival & Memories
-
-**Status: Completed**
-
-- [x] Endless Gauntlet
-- [x] Consecutive victory streaks
-- [x] Randomized Gauntlet opponents
-- [x] Randomized Gauntlet arenas
-- [x] Persistent Gauntlet records
-- [x] Match history
-- [x] Turn-by-turn replays
-
-## ✅ Phase 4 — Tournament Circuit
-
-**Status: Completed through Stage 7C**
-
-- [x] 8-, 16-, and 32-player tournaments
-- [x] Headless AI-versus-AI matches
-- [x] Tournament participant profiles and rankings
-- [x] Accelerated catch-up and spectator mode
-- [x] Tournament history and archives
-
----
-
-# 🚧 Upcoming Expansions
-
-## ✅ Expansion I — The Tournament Circuit
-
-**Status: Completed through Stage 7C**
-
-Take on an offline single-elimination championship with a full cast of AI gunslingers.
-
-- [x] Configurable 8-, 16-, and 32-participant brackets
-- [x] One human competitor and the remaining AI opponents
-- [x] AI-versus-AI duels using the standard combat resolver
-- [x] Consistent tournament-specific bot names, appearances, and personalities
-- [x] Tournament-specific participant dossiers and W/L records
-- [x] Elimination-based rankings with tied placements
-- [x] Scrollable bracket with participant profiles
-- [x] Accelerated tournament catch-up (4×, 8×, Instant)
-- [x] Spectator mode after player elimination
-- [x] Tournament results and archives
-
-**Potential follow-up polish:** A dedicated searchable and sortable Gunslinger Registry outside the bracket, and richer tournament presentation. These are not required to play the completed Tournament Circuit.
-
-## 🌎 Expansion II — The Frontier
-
-**Status: Planned**
-
-The Frontier will expand Wild Wild Cards beyond individual duels.
-
-Players will explore an interconnected Western world through a lightweight map-based travel system.
-
-### Planned Territories
-
-- Nevada
-- California
-- Texas
-- Mississippi
-
-Each territory will have its own atmosphere, opponents, and championship history.
-
-### Planned Features
-
-- Territory travel
-- Regional gunslingers
-- Saloons and social locations
-- Recurring rival encounters
-- Local champions
-- Territory reputation
-- Gunslinger records
-- Regional tournaments
-- WANTED poster collections
-
-The Frontier is planned as a connected game world, not a resource-heavy 3D open world.
-
-## 👑 Expansion III — Legendary Gunslingers
-
-**Status: Planned**
-
-Become more than a winner.
-
-Become a legend.
-
-Legendary Gunslingers will introduce prestigious titles that players can earn and defend.
-
-### Planned Legendary Titles
-
-- The Untouchable
-- The Deadeye
-- The Iron Wall
-- The High Noon King
-- The Last Gunslinger
-
-Each territory may have its own holder of a legendary title.
-
-For example, Nevada's Untouchable and Texas's Untouchable may be different gunslingers.
-
-### Championship Challenges
-
-Legendary title challenges are planned around best-of-five duels.
-
-The first competitor to win three duels becomes the champion.
-
-Defeating the current title holder transfers the active title to the challenger.
-
-### Historical Legacy
-
-Losing a championship will not erase a gunslinger's history.
-
-Past title holders will remain part of the Frontier's historical records.
-
-Planned features include:
-
-- Championship lineage
-- Title defense records
-- Former champion archives
-- Historical WANTED posters
-- Hall of Legends
-- Territory championship histories
-
-**A title can be lost. A legend cannot be erased.**
-
-## 🌐 Expansion IV — Online Frontier
-
-**Status: Long-Term Planned**
-
-Take the duels online.
-
-Planned features:
-
-- Online player-versus-player duels
-- Private and casual matches
-- Online matchmaking
-- Competitive statistics
-- Online tournament events
-- Territorial championship challenges
-- Seasonal leaderboards
-- Persistent champion records
-- Online saloon social spaces
-
-Online competitive championships will require authoritative match validation and protection against cheating or manipulated results.
-
-Offline achievements and competitive online championship records will remain distinct.
-
-## 📰 Expansion V — The Frontier Chronicle
-
-**Status: Concept**
-
-A living historical record of the Wild Wild Cards universe.
-
-Planned features:
-
-- Newspaper-style championship announcements
-- Major tournament results
-- Legendary title transfers
-- Famous gunslinger profiles
-- Seasonal historical archives
-- Notable rivalries
-- Hall of Legends exhibitions
-
-Players may eventually see their names recorded in the history of the Frontier.
-
-## 🎯 Expansion VI — Bounty Board & Story Mode
-
-**Status: Concept**
-
-Introduce optional narrative experiences around the existing duel system.
-
-Potential features:
-
-- Named outlaw encounters
-- Bounty challenges
-- Rival gunslinger storylines
-- Territory-specific missions
-- Special duel conditions
-- Character-driven progression
-
-The objective is to provide context and personality without replacing the original combat mechanics.
-
-## 🌙 Expansion VII — Fantasy Frontier
-
-**Status: Experimental Concept**
-
-An optional expansion exploring supernatural Western themes.
-
-Possible characters and concepts include:
-
-- Jack Magician
-- TimeSlinger
-- Blood & White
-- Supernatural gunslingers
-- Fantasy-inspired arenas
-- Alternate duel experiences
-
-Fantasy Frontier would remain separate from the main competitive ruleset wherever its mechanics differ.
+Wild Wild Cards is an evolving independent project. The roadmap below distinguishes **implemented features** from ideas that are not yet playable. Features and availability may change between builds.
+
+### ✅ Implemented foundations
+
+- [x] Simultaneous Reload / Shield / Shoot combat and weighted bot personalities
+- [x] Quick Play, Endless Gauntlet, and local two-player duels
+- [x] Player identity, cosmetic customization, revolvers, arenas, and finishers
+- [x] Match history and turn-by-turn replays
+- [x] Offline 8-, 16-, and 32-player Tournament Circuit
+- [x] Tournament bracket, participant dossiers, rankings, searchable registry, archives, and spectator catch-up
+- [x] Tournament completion recovery and duplicate-award safeguards
+- [x] Frontier foundation: map, four territories, travel, hubs, regional tournaments, and journal
+
+### 🛠️ Ongoing improvements
+
+- [ ] Navigation, presentation, and accessibility polish
+- [ ] Expanded and verified career statistics across modes
+- [ ] Manual end-to-end testing and release packaging
+
+### 🌵 Planned expansions — not yet implemented
+
+- **Regional champions and recurring rivals:** memorable opponents and territory-specific challenges
+- **Legendary Gunslingers:** title challenges, title lineages, and Hall of Legends
+- **Frontier activities:** saloons, optional encounters, and narrative events
+- **Online multiplayer:** remote duels, matchmaking, and possible competitive events
+- **Frontier Chronicle:** historical newspaper-style records and champion stories
+- **Bounty Board and story content:** optional character-driven challenges
+- **Fantasy Frontier:** experimental supernatural Western ideas, separate from standard competitive rules where needed
+
+These are development intentions, not promises of delivery or release dates.
 
 ---
 
@@ -706,11 +521,33 @@ If you encounter an issue, consider including:
 
 ---
 
+## 🤖 AI-Assisted Development Disclosure
+
+Wild Wild Cards has been developed with the assistance of generative AI tools, including AI coding assistants, for tasks such as brainstorming, code generation, debugging, documentation, and development planning.
+
+AI-generated suggestions and code are incorporated into the project through an iterative development process. **The project maintainer is responsible for deciding what to include, reviewing and testing changes, and maintaining the released project.** AI assistance does not mean every generated change has been independently verified or is free of bugs.
+
+This disclosure is intended to be transparent about the development process, not to suggest that the game's opponents use a generative language model. In-game gunslinger opponents use a weighted decision-making system described above.
+
+Contributors should disclose substantial AI-assisted contributions when relevant and verify that their submissions can legally be distributed under the project's license.
+
+---
+
+## ⚠️ Development Disclaimer
+
+Wild Wild Cards is an independent project under active development. Builds may contain bugs, incomplete features, balancing changes, or save-format updates. Back up important save data before trying experimental releases.
+
+Any third-party assets, fonts, audio, libraries, or other material included in the repository may be subject to their own licenses. Consult applicable attribution or asset notices before reusing them.
+
+---
+
 ## 📄 License
 
-License information will be added when a distribution license is selected.
+The original project source code is released under the **MIT License**. See [LICENSE](LICENSE) for the full license text.
 
-Until then, do not assume the source code or assets are licensed for unrestricted redistribution or commercial reuse.
+You may use, modify, distribute, and sublicense MIT-licensed portions of the project, including commercially, provided you retain the required copyright and permission notices. The software is provided **as is**, without warranty.
+
+**Important:** The MIT License does not override separate terms for third-party assets or other content that the project maintainer does not have rights to relicense.
 
 ---
 
